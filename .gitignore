@@ -1,0 +1,38 @@
+# ── Dependencias ─────────────────────────────
+node_modules/
+
+# ── Builds (generados) ───────────────────────
+dist/
+dist-ssr/
+release/              # instaladores de electron-builder (.AppImage, .exe, .dmg)
+out/                  # carpeta alternativa de empaquetado
+*.tsbuildinfo
+
+# ── Variables de entorno ─────────────────────
+*.local
+.env
+.env.*
+!.env.example
+
+# ── Logs ─────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── Editores ─────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── Sistema operativo ────────────────────────
+.DS_Store
+Thumbs.db
