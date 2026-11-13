@@ -15,17 +15,37 @@
     "dist:mac": "npm run build && electron-builder --mac"
   },
   "build": {
-  "appId": "com.danim.miappescritorio",
-  "productName": "Mi App Escritorio",
-  "directories": { "output": "release" },
-  "files": ["dist/**", "electron/**", "package.json"],
-  "linux": { "target": ["AppImage"], "category": "Utility" },
-  "win": { "target": ["nsis"] },
-  "mac": { "target": ["dmg"] }
-},
+    "appId": "com.danim.miappescritorio",
+    "productName": "Mi App Escritorio",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    }
+  },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
     "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/playfair-display": "^5.3.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "lucide-react": "^1.72.0",
