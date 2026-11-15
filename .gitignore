@@ -2,11 +2,36 @@
 node_modules/
 
 # ── Builds (generados) ───────────────────────
+# Nota: en .gitignore los comentarios "#" solo valen si empiezan la línea.
+# Nunca pongas comentarios al final del patrón, o el patrón se rompe.
 dist/
 dist-ssr/
-release/              # instaladores de electron-builder (.AppImage, .exe, .dmg)
-out/                  # carpeta alternativa de empaquetado
+# instaladores de electron-builder (.AppImage, .exe, .dmg)
+release/
+release/**
+# carpeta alternativa de empaquetado
+out/
 *.tsbuildinfo
+
+# ── Binarios de build (nunca subir a git) ────
+# Nada de esto debe entrar al repo: GitHub rechaza archivos > 100 MB
+# y estos artefactos se regeneran con `npm run build`.
+*.AppImage
+*.AppImage.zsync
+*.blockmap
+*.asar
+*.dmg
+*.exe
+*.deb
+*.rpm
+*.snap
+/linux-unpacked/
+/win-unpacked/
+/mac/
+/mac-universal/
+builder-debug.yml
+builder-effective-config.yaml
+latest-*.yml
 
 # ── Variables de entorno ─────────────────────
 *.local
