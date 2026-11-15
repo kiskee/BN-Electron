@@ -1,7 +1,95 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('node:path')
+const fs = require('node:fs')
+
+// ── Variables de entorno (.env en la raíz del proyecto) ──
+// LOGIN, REGISTER, REFRESH y LOGOUT apuntan a los endpoints de auth.
+// OJO: en la app empaquetada el .env vive dentro del app.asar y
+// process.loadEnvFile NO puede leer de ahí (usa bindings crudos de Node).
+// fs.readFileSync sí está parcheado por Electron para leer asar, así que
+// leemos el archivo a mano y lo parseamos.
+function loadEnvFile() {
+  const candidates = [
+    path.join(__dirname, '..', '.env'), // dev (raíz del proyecto) y empaquetado (app.asar/.env)
+    path.join(app.getAppPath(), '.env'), // raíz del paquete
+    path.join(process.resourcesPath, 'app.asar', '.env'), // junto al ejecutable empaquetado
+    path.join(process.resourcesPath, '.env'), // .env externo (junto al binario)
+    path.join(process.cwd(), '.env'),
+  ]
+
+  for (const file of candidates) {
+    try {
+      const raw = fs.readFileSync(file, 'utf8')
+      for (const line of raw.split(/\r?\n/)) {
+        const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/)
+        // No pisar variables ya definidas en el entorno del sistema
+        if (match && process.env[match[1]] === undefined) {
+          process.env[match[1]] = match[2].trim()
+        }
+      }
+      console.log(`[auth] .env cargado desde: ${file}`)
+      return file
+    } catch {
+      // Probar el siguiente candidato
+    }
+  }
+
+  console.warn('[auth] No se encontró el archivo .env — LOGIN/REGISTER/REFRESH/LOGOUT deben venir del entorno')
+  return null
+}
+
+loadEnvFile()
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL)
+
+// ── Llamadas HTTP al backend de auth ──
+// Se hacen desde el proceso principal (Node) para evitar los problemas de
+// CORS del renderer y mantener las URLs fuera del bundle de la interfaz.
+async function authRequest(url, payload) {
+  if (!url) {
+    return {
+      status: 0,
+      body: {
+        error: 'El endpoint de autenticación no está configurado en el archivo .env',
+        code: 'CONFIG_ERROR',
+      },
+    }
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload ?? {}),
+      signal: AbortSignal.timeout(15000),
+    })
+
+    const body = await res.json().catch(() => null)
+    return { status: res.status, body }
+  } catch {
+    return {
+      status: 0,
+      body: {
+        error: 'No se pudo conectar con el servidor. Revisa tu conexión.',
+        code: 'NETWORK_ERROR',
+      },
+    }
+  }
+}
+
+// Endpoints derivados del LOGIN si no están definidos explícitamente en .env
+function derivedEndpoint(fallbackPath) {
+  const login = process.env.LOGIN
+  return login ? login.replace(/\/auth\/login\/?$/, fallbackPath) : undefined
+}
+
+const REFRESH_URL = process.env.REFRESH || derivedEndpoint('/auth/refresh')
+const LOGOUT_URL = process.env.LOGOUT || derivedEndpoint('/auth/logout')
+
+ipcMain.handle('auth:login', (_event, payload) => authRequest(process.env.LOGIN, payload))
+ipcMain.handle('auth:register', (_event, payload) => authRequest(process.env.REGISTER, payload))
+ipcMain.handle('auth:refresh', (_event, payload) => authRequest(REFRESH_URL, payload))
+ipcMain.handle('auth:logout', (_event, payload) => authRequest(LOGOUT_URL, payload))
 
 function createWindow() {
   const win = new BrowserWindow({

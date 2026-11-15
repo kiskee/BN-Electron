@@ -1,53 +1,45 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import logo from '@/assets/logo.png'
+import AuthLayout from '@/components/AuthLayout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-
-// Destellos de purpurina (como el fondo del logo)
-const purpurina =
-  'radial-gradient(2px 2px at 24px 32px, rgba(255,255,255,0.55), transparent 100%), ' +
-  'radial-gradient(1.5px 1.5px at 96px 18px, rgba(255,255,255,0.40), transparent 100%), ' +
-  'radial-gradient(2px 2px at 148px 72px, rgba(255,255,255,0.50), transparent 100%), ' +
-  'radial-gradient(1.5px 1.5px at 42px 118px, rgba(255,255,255,0.35), transparent 100%), ' +
-  'radial-gradient(2.5px 2.5px at 178px 138px, rgba(255,255,255,0.45), transparent 100%), ' +
-  'radial-gradient(1.5px 1.5px at 118px 168px, rgba(255,255,255,0.30), transparent 100%)'
+import { useAuth } from '@/context/auth-context'
+import { AuthError } from '@/services/auth'
 
 function LoginPage() {
+  const { login, notice, setNotice } = useAuth()
+  const location = useLocation()
+  const registrado = Boolean((location.state as { registered?: boolean } | null)?.registered)
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [verPassword, setVerPassword] = useState(false)
+  const [cargando, setCargando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError(null)
+    setNotice(null)
+    setCargando(true)
+
+    try {
+      await login({ email: email.trim(), password })
+      // El estado pasa a 'authed' y ProtectedRoute redirige al Home
+    } catch (err) {
+      setError(
+        err instanceof AuthError ? err.message : 'Error inesperado. Intenta de nuevo.',
+      )
+    } finally {
+      setCargando(false)
+    }
+  }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-4">
-      {/* ── Fondo morado (colores del logo) ── */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#4a2c59] via-[#834d94] to-[#9566a2]" />
-
-      {/* Purpurina */}
-      <div
-        className="absolute inset-0 opacity-70"
-        style={{ backgroundImage: purpurina, backgroundSize: '200px 200px' }}
-      />
-
-      {/* Resplandores suaves */}
-      <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-[#9566a2]/50 blur-3xl" />
-      <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-[#4a2c59]/60 blur-3xl" />
-
-      {/* ── Nombre de la sastrería (tipografía del logo) ── */}
-      <div className="relative z-10 mb-6 text-center">
-        <h1
-          className="font-serif text-5xl font-semibold text-white"
-          style={{ fontVariant: 'small-caps', textShadow: '0 2px 12px rgba(0,0,0,0.35)' }}
-        >
-          Blanco <span className="italic font-normal">&</span> Negro
-        </h1>
-        <p
-          className="mt-1 font-serif text-xl text-white/90"
-          style={{ letterSpacing: '0.45em', textShadow: '0 2px 8px rgba(0,0,0,0.3)' }}
-        >
-          SASTRERÍA
-        </p>
-      </div>
-
+    <AuthLayout>
       {/* ── Tarjeta de login ── */}
       <div className="relative z-10 w-full max-w-md rounded-3xl border border-white/40 bg-white/95 p-8 shadow-2xl">
         {/* Logo */}
@@ -60,8 +52,34 @@ function LoginPage() {
           <p className="mt-4 text-sm text-[#6b4c7a]">Inicia sesión para continuar</p>
         </div>
 
-        {/* Formulario (visual) */}
-        <div className="mt-6 space-y-5">
+        {/* Avisos */}
+        {registrado && !error && (
+          <div
+            role="status"
+            className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700"
+          >
+            Usuario creado exitosamente. Inicia sesión para continuar.
+          </div>
+        )}
+        {notice && !error && (
+          <div
+            role="status"
+            className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700"
+          >
+            {notice}
+          </div>
+        )}
+        {error && (
+          <div
+            role="alert"
+            className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          >
+            {error}
+          </div>
+        )}
+
+        {/* Formulario */}
+        <form onSubmit={handleSubmit} className="mt-6 space-y-5">
           <div className="space-y-2">
             <Label htmlFor="correo">Correo</Label>
             <Input
@@ -69,6 +87,10 @@ function LoginPage() {
               type="email"
               placeholder="tucorreo@ejemplo.com"
               className="h-11"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
             />
           </div>
 
@@ -80,6 +102,10 @@ function LoginPage() {
                 type={verPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 className="h-11 pr-11"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
               />
               <button
                 type="button"
@@ -96,26 +122,37 @@ function LoginPage() {
             </div>
           </div>
 
-          <Button className="h-11 w-full bg-[#1a1a1a] text-white hover:bg-[#4a2c59]">
-            Iniciar sesión
+          <Button
+            type="submit"
+            disabled={cargando}
+            className="h-11 w-full bg-[#1a1a1a] text-white hover:bg-[#4a2c59]"
+          >
+            {cargando ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                Iniciando sesión…
+              </>
+            ) : (
+              'Iniciar sesión'
+            )}
           </Button>
-        </div>
+        </form>
 
         <p className="mt-6 text-center text-xs text-[#6b4c7a]">
           ¿Olvidaste tu contraseña?
         </p>
-      </div>
 
-      {/* Fecha abajo */}
-      <p className="absolute bottom-4 text-xs text-white/70">
-        Hoy es {new Date().toLocaleDateString('es-ES', {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        })}
-      </p>
-    </div>
+        <p className="mt-2 text-center text-sm text-[#6b4c7a]">
+          ¿No tienes cuenta?{' '}
+          <Link
+            to="/register"
+            className="font-medium text-[#4a2c59] underline underline-offset-4 hover:text-[#834d94]"
+          >
+            Regístrate
+          </Link>
+        </p>
+      </div>
+    </AuthLayout>
   )
 }
 
