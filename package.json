@@ -16,7 +16,7 @@
   },
   "build": {
     "appId": "com.danim.miappescritorio",
-    "productName": "Mi App Escritorio",
+    "productName": "Blanco y Negro Sastrería",
     "directories": {
       "output": "release"
     },
@@ -30,7 +30,15 @@
       "target": [
         "AppImage"
       ],
-      "category": "Utility"
+      "category": "Utility",
+      "icon": "build/icon.png",
+      "syncDesktopName": true,
+      "desktop": {
+        "entry": {
+          "Name": "Blanco & Negro Sastrería",
+          "Comment": "Sistema de gestión de sastrería"
+        }
+      }
     },
     "win": {
       "target": [

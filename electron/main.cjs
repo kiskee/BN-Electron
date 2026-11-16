@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, nativeImage } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
 
@@ -92,9 +92,19 @@ ipcMain.handle('auth:refresh', (_event, payload) => authRequest(REFRESH_URL, pay
 ipcMain.handle('auth:logout', (_event, payload) => authRequest(LOGOUT_URL, payload))
 
 function createWindow() {
+  // Icono de la ventana (barra de tareas / escritorio).
+  // fs.readFileSync sí lee dentro del asar; nativeImage.createFromBuffer lo recibe en memoria.
+  let windowIcon
+  try {
+    windowIcon = nativeImage.createFromBuffer(fs.readFileSync(path.join(__dirname, 'icon.png')))
+  } catch {
+    // Sin icono: usa el de por defecto
+  }
+
   const win = new BrowserWindow({
     width: 1100,
     height: 720,
+    icon: windowIcon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
