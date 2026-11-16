@@ -20,7 +20,9 @@ export interface AuthTokens {
 
 export interface AuthSession {
   user: AuthUser
-  tokens: AuthTokens
+  /** null = sesión offline local (sin tokens de la nube) */
+  tokens: AuthTokens | null
+  offline?: boolean
 }
 
 export interface LoginInput {
@@ -68,5 +70,36 @@ export interface WindowApi {
     register: (payload: RegisterInput) => Promise<ApiResponse>
     refresh: (payload: { refresh_token: string }) => Promise<ApiResponse>
     logout: (payload: { refresh_token: string }) => Promise<ApiResponse>
+    saveLocalCredentials: (payload: LocalCredentialsInput) => Promise<void>
+    verifyLocal: (payload: { identifier: string; password: string }) => Promise<{ user: AuthUser } | null>
   }
+  settings: {
+    get: (key: string) => Promise<string | null>
+    set: (key: string, value: string) => Promise<void>
+  }
+  syncMeta: {
+    get: (key: string) => Promise<string | null>
+    set: (key: string, value: string) => Promise<void>
+  }
+  system: {
+    info: () => Promise<SystemInfo>
+  }
+}
+
+export interface LocalCredentialsInput {
+  email?: string
+  username?: string
+  password: string
+  user: AuthUser
+}
+
+export interface SystemInfo {
+  platform: string
+  versions: {
+    electron: string
+    chrome: string
+    node: string
+  }
+  dbPath: string | null
+  counts: Record<string, number>
 }

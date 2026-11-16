@@ -73,13 +73,46 @@ function buildError(res: ApiResponse): AuthError {
 // ── Requests ──
 
 export async function login(input: LoginInput): Promise<AuthSession> {
-  const res = await window.api.auth.login(input)
+  try {
+    const res = await window.api.auth.login(input)
 
-  if (res.status === 200 && res.body?.user && res.body?.tokens) {
-    return { user: res.body.user, tokens: res.body.tokens }
+    if (res.status === 200 && res.body?.user && res.body?.tokens) {
+      const session: AuthSession = { user: res.body.user, tokens: res.body.tokens }
+
+      // Cachear credenciales en la base local: permite entrar sin internet
+      void window.api.auth
+        .saveLocalCredentials({
+          email: input.email,
+          username: input.username ?? res.body.user.username,
+          password: input.password,
+          user: res.body.user,
+        })
+        .catch(() => {})
+
+      return session
+    }
+
+    throw buildError(res)
+  } catch (err) {
+    // Sin conexión: intentar el login contra la copia local del PC
+    if (err instanceof AuthError && err.code === 'NETWORK_ERROR') {
+      const identifier = input.email ?? input.username ?? ''
+      const local = await window.api.auth
+        .verifyLocal({ identifier, password: input.password })
+        .catch(() => null)
+
+      if (local?.user) {
+        return { user: local.user, tokens: null, offline: true }
+      }
+
+      throw new AuthError(
+        'No hay conexión y este PC no reconoce tus credenciales. Conéctate una vez para iniciar sesión.',
+        { code: 'OFFLINE_LOGIN_FAILED' },
+      )
+    }
+
+    throw err
   }
-
-  throw buildError(res)
 }
 
 export async function register(input: RegisterInput): Promise<void> {
@@ -120,7 +153,9 @@ export function loadSession(): AuthSession | null {
     if (!raw) return null
 
     const session = JSON.parse(raw) as AuthSession
-    if (!session?.user?.id || !session?.tokens?.access_token) return null
+    if (!session?.user?.id) return null
+    // Sesión normal: exige access token. Offline: tokens es null y es válida.
+    if (session.tokens && !session.tokens.access_token) return null
 
     return session
   } catch {
@@ -145,6 +180,8 @@ function getTokenExp(token: string): number | null {
 }
 
 export function isSessionExpired(session: AuthSession): boolean {
+  // Sesión offline local: no tiene token que expire
+  if (!session.tokens) return false
   const exp = getTokenExp(session.tokens.access_token)
   if (exp === null) return false // sin exp legible: confiamos en el 401 del backend
   return exp * 1000 <= Date.now()
@@ -152,6 +189,7 @@ export function isSessionExpired(session: AuthSession): boolean {
 
 /** Milisegundos que faltan para que expire el access token (mínimo 0). */
 export function sessionMsLeft(session: AuthSession): number {
+  if (!session.tokens) return Number.POSITIVE_INFINITY // sesión offline: no expira
   const exp = getTokenExp(session.tokens.access_token)
   if (exp === null) return Number.POSITIVE_INFINITY
   return Math.max(0, exp * 1000 - Date.now())

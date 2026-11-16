@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, nativeImage } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
+const { openDatabase, getSetting, setSetting, getSyncMeta, setSyncMeta, dbInfo } = require('./db.cjs')
+const { saveLocalCredentials, verifyLocal } = require('./local-auth.cjs')
 
 // ── Variables de entorno (.env en la raíz del proyecto) ──
 // LOGIN, REGISTER, REFRESH y LOGOUT apuntan a los endpoints de auth.
@@ -91,6 +93,47 @@ ipcMain.handle('auth:register', (_event, payload) => authRequest(process.env.REG
 ipcMain.handle('auth:refresh', (_event, payload) => authRequest(REFRESH_URL, payload))
 ipcMain.handle('auth:logout', (_event, payload) => authRequest(LOGOUT_URL, payload))
 
+// ── Base de datos local (SQLite en la carpeta de datos del usuario) ──
+let db = null
+let dbPath = null
+
+// ── Login offline y ajustes (IPC local) ──
+// Cachear credenciales tras login online para poder entrar sin internet
+ipcMain.handle('auth:saveLocalCredentials', async (_event, payload) => {
+  if (!db) return
+  await saveLocalCredentials(db, payload)
+})
+
+// Verificar contraseña contra la copia local (modo sin conexión)
+ipcMain.handle('auth:verifyLocal', async (_event, payload) => {
+  if (!db) return null
+  const user = await verifyLocal(db, payload)
+  return user ? { user } : null
+})
+
+// Ajustes clave/valor (ej: intervalo de sincronización)
+ipcMain.handle('settings:get', (_event, key) => (db ? getSetting(db, key) : null))
+ipcMain.handle('settings:set', (_event, key, value) => {
+  if (db) setSetting(db, key, value)
+})
+
+// Estado de sincronización (lo usa la Fase B)
+ipcMain.handle('syncMeta:get', (_event, key) => (db ? getSyncMeta(db, key) : null))
+ipcMain.handle('syncMeta:set', (_event, key, value) => {
+  if (db) setSyncMeta(db, key, value)
+})
+
+// Diagnóstico: ruta de la base, conteos y versiones
+ipcMain.handle('system:info', () => ({
+  platform: process.platform,
+  versions: {
+    electron: process.versions.electron,
+    chrome: process.versions.chrome,
+    node: process.versions.node,
+  },
+  ...(db ? dbInfo(db, dbPath) : { dbPath: null, counts: {} }),
+}))
+
 function createWindow() {
   // Icono de la ventana (barra de tareas / escritorio).
   // fs.readFileSync sí lee dentro del asar; nativeImage.createFromBuffer lo recibe en memoria.
@@ -121,6 +164,16 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Abrir la base local antes de crear la ventana
+  try {
+    const opened = openDatabase(app.getPath('userData'))
+    db = opened.db
+    dbPath = opened.dbPath
+    console.log(`[db] base local abierta: ${dbPath}`)
+  } catch (err) {
+    console.error('[db] no se pudo abrir la base local:', err)
+  }
+
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -129,4 +182,13 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+// Cerrar la base local limpiamente al salir
+app.on('will-quit', () => {
+  try {
+    if (db) db.close()
+  } catch {
+    // ya estaba cerrada
+  }
 })
