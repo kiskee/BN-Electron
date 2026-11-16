@@ -112,6 +112,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, notice }))
   }, [])
 
+  // La sesión vive en el renderer; el motor de sync (proceso principal)
+  // la necesita para subir/bajar datos con su Bearer token
+  useEffect(() => {
+    void window.api.sync.setSession(state.session)
+  }, [state.session])
+
   const login = useCallback(async (input: Parameters<AuthContextValue['login']>[0]) => {
     const session = await loginRequest(input)
     saveSession(session)

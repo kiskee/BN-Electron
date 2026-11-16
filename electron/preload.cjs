@@ -25,6 +25,23 @@ contextBridge.exposeInMainWorld('api', {
     get: (key) => ipcRenderer.invoke('syncMeta:get', key),
     set: (key, value) => ipcRenderer.invoke('syncMeta:set', key, value),
   },
+  records: {
+    save: (payload) => ipcRenderer.invoke('records:save', payload),
+    get: (payload) => ipcRenderer.invoke('records:get', payload),
+    list: (payload) => ipcRenderer.invoke('records:list', payload),
+  },
+  sync: {
+    setSession: (session) => ipcRenderer.invoke('sync:setSession', session),
+    now: () => ipcRenderer.invoke('sync:now'),
+    status: () => ipcRenderer.invoke('sync:status'),
+    setIntervalMinutes: (minutes) => ipcRenderer.invoke('sync:setIntervalMinutes', minutes),
+    // Suscripción a cambios de estado — devuelve la función para cancelar
+    onStatus: (callback) => {
+      const handler = (_event, status) => callback(status)
+      ipcRenderer.on('sync:status-changed', handler)
+      return () => ipcRenderer.removeListener('sync:status-changed', handler)
+    },
+  },
   system: {
     info: () => ipcRenderer.invoke('system:info'),
   },

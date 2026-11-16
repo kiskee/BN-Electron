@@ -16,6 +16,7 @@ import {
   Users,
 } from 'lucide-react'
 import logo from '@/assets/logo.png'
+import SyncIndicator from '@/components/SyncIndicator'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/context/auth-context'
 import type { AuthUser } from '@/types/auth'
@@ -92,7 +93,8 @@ function HomePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <SyncIndicator />
             <div className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5">
               <User className="h-4 w-4 text-white/90" />
               <span className="text-sm font-medium">{user?.nombre}</span>
